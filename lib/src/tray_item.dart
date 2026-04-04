@@ -4,12 +4,7 @@
 /// can identify which item was clicked without depending on any external
 /// package (e.g. `menu_base`, `shortid`).
 class TrayMenuItem {
-  TrayMenuItem(
-      {required this.label,
-      this.key,
-      this.disabled = false,
-      this.checked,
-      this.children})
+  TrayMenuItem({required this.label, this.key, this.disabled = false, this.checked, this.children})
       : type = TrayMenuItemType.normal,
         id = _nextId++;
 
@@ -72,8 +67,7 @@ class TrayMenuItem {
       'label': label,
       'disabled': disabled,
       if (checked != null) 'checked': checked,
-      if (children != null)
-        'submenu': {'items': children!.map((e) => e.toJson()).toList()},
+      if (children != null) 'submenu': {'items': children!.map((e) => e.toJson()).toList()},
     };
   }
 }
@@ -107,8 +101,7 @@ class TrayMenu {
     return null;
   }
 
-  static TrayMenuItem? _findInChildren(
-      List<TrayMenuItem>? children, String key) {
+  static TrayMenuItem? _findInChildren(List<TrayMenuItem>? children, String key) {
     if (children == null) return null;
     for (final child in children) {
       if (child.key == key) return child;
@@ -118,8 +111,7 @@ class TrayMenu {
     return null;
   }
 
-  static TrayMenuItem? _findByIdInChildren(
-      List<TrayMenuItem>? children, int id) {
+  static TrayMenuItem? _findByIdInChildren(List<TrayMenuItem>? children, int id) {
     if (children == null) return null;
     for (final child in children) {
       if (child.id == id) return child;

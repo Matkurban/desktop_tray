@@ -34,8 +34,7 @@ class DesktopTray {
 
   static const MethodChannel _channel = MethodChannel('desktop_tray');
 
-  final ObserverList<DesktopTrayListener> _listeners =
-      ObserverList<DesktopTrayListener>();
+  final ObserverList<DesktopTrayListener> _listeners = ObserverList<DesktopTrayListener>();
 
   /// The most recently set menu, used for mapping native id → [TrayMenuItem].
   TrayMenu? _menu;
@@ -46,8 +45,7 @@ class DesktopTray {
 
   void addListener(DesktopTrayListener listener) => _listeners.add(listener);
 
-  void removeListener(DesktopTrayListener listener) =>
-      _listeners.remove(listener);
+  void removeListener(DesktopTrayListener listener) => _listeners.remove(listener);
 
   /// Check whether the system tray (StatusNotifierWatcher) is available.
   ///
@@ -100,8 +98,7 @@ class DesktopTray {
   /// Linux AppIndicator).
   Future<void> setContextMenu(TrayMenu menu) async {
     _menu = menu;
-    await _channel
-        .invokeMethod<void>('setContextMenu', {'menu': menu.toJson()});
+    await _channel.invokeMethod<void>('setContextMenu', {'menu': menu.toJson()});
   }
 
   /// Programmatically open the context menu at the current cursor position.
