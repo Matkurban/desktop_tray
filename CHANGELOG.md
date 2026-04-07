@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.4.8
+
+-- fix `windows` warning
+
 ## 2026.4.4
 
 ### Added
