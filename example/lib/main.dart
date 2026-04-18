@@ -241,9 +241,8 @@ class _DemoHomeState extends State<DemoHome> with DesktopTrayListener {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Chip(
               label: Text(_trayAlive ? 'tray: alive' : 'tray: dead'),
-              backgroundColor: _trayAlive
-                  ? Colors.green.shade100
-                  : Colors.red.shade100,
+              backgroundColor:
+                  _trayAlive ? Colors.green.shade100 : Colors.red.shade100,
             ),
           ),
         ],
