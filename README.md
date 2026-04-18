@@ -8,17 +8,18 @@ Built with zero third-party Dart dependencies — only native platform APIs:
 |-------------|-----------------------------------------------------|
 | **Linux**   | libayatana-appindicator (or legacy libappindicator)  |
 | **macOS**   | NSStatusBar + NSMenu                                |
-| **Windows** | Win32 Shell_NotifyIcon + TrackPopupMenu             |
+| **Windows** | Win32 Shell_NotifyIcon + GDI+ (PNG/JPG/BMP/ICO)     |
 
 > 🇨🇳 [中文文档](README_ZH.md)
 
 ## Features
 
-- 🖼️ Set a tray icon from Flutter asset paths (`.png` / `.ico`)
-- 💬 Set a hover tooltip (supported on all platforms)
+- 🖨️ Set a tray icon from Flutter asset paths (`.png` / `.jpg` / `.bmp` / `.ico`)
+- 💬 Set a hover tooltip (supported on Windows and macOS)
 - 📋 Build context menus with normal items, separators, checkboxes, and nested submenus
 - 🖱️ Receive left-click, right-click, and menu-item-click callbacks via a listener mixin
 - 🧩 Unique auto-incremented item IDs — no external ID generators needed
+- 🔍 `checkAvailable()` probes the Linux StatusNotifierWatcher before use
 
 ## Getting Started
 
@@ -134,6 +135,7 @@ await desktopTray.destroy();
 
 | Method                                | Description                                             |
 |---------------------------------------|---------------------------------------------------------|
+| `checkAvailable()`                    | Probe the tray backend (Linux-only; `true` elsewhere)   |
 | `setIcon(String assetPath)`           | Set tray icon from a Flutter asset path                 |
 | `setToolTip(String toolTip)`          | Set hover tooltip text (no-op on Linux)                 |
 | `setContextMenu(TrayMenu menu)`       | Replace the right-click context menu                    |
@@ -156,7 +158,11 @@ await desktopTray.destroy();
 
 - **Linux**: AppIndicator always shows the context menu on left-click. `popUpContextMenu()` is a no-op. Tooltip is not supported by the AppIndicator API. The deprecation warning from newer versions of libayatana-appindicator is silently suppressed.
 - **macOS**: Icon data is sent as base64 to the native layer for `NSImage` construction.
-- **Windows**: Expects `.ico` format icons for the best display quality.
+- **Windows**: `.ico`, `.png`, `.jpg`, `.bmp`, and `.gif` are all supported. `.ico` is loaded via `LoadImage`; other formats are decoded by GDI+ and scaled to the system small-icon size. If the file cannot be decoded the plugin throws a `PlatformException` with code `ICON_LOAD_FAILED` instead of registering an empty tray slot.
+
+## Running the Example
+
+A complete demo covering every public API lives in [`example/`](example). See [example/README.md](example/README.md) for icon-asset setup and run instructions.
 
 ## License
 

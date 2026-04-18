@@ -12,10 +12,19 @@
 #include <stdio.h>
 #include <strsafe.h>
 
+// GDI+ is used to decode .png / .jpg / .bmp / .gif icons. The Windows
+// LoadImage() API only understands raw .ico files, which was the root cause of
+// "the tray button is there but no icon is shown" for non-.ico assets.
+#include <objidl.h>
+#include <gdiplus.h>
+#pragma comment(lib, "gdiplus.lib")
+
 #include <flutter/method_channel.h>
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
 
+#include <algorithm>
+#include <cwctype>
 #include <codecvt>
 #include <memory>
 #include <string>
@@ -23,6 +32,74 @@
 #define WM_DESKTOP_TRAY (WM_USER + 100)
 
 namespace {
+
+// Process-wide GDI+ token. We start it once in the plugin constructor and
+// shut it down in the destructor.
+ULONG_PTR g_gdiplus_token = 0;
+int g_gdiplus_refcount = 0;
+
+void EnsureGdiplusStarted() {
+  if (g_gdiplus_refcount++ == 0) {
+    Gdiplus::GdiplusStartupInput input;
+    Gdiplus::GdiplusStartup(&g_gdiplus_token, &input, nullptr);
+  }
+}
+
+void MaybeShutdownGdiplus() {
+  if (--g_gdiplus_refcount <= 0 && g_gdiplus_token != 0) {
+    Gdiplus::GdiplusShutdown(g_gdiplus_token);
+    g_gdiplus_token = 0;
+    g_gdiplus_refcount = 0;
+  }
+}
+
+// Return lowercase extension (without the dot) of a wide path, e.g. L"png".
+std::wstring LowerExtension(const std::wstring &path) {
+  auto dot = path.find_last_of(L'.');
+  if (dot == std::wstring::npos) return L"";
+  std::wstring ext = path.substr(dot + 1);
+  std::transform(ext.begin(), ext.end(), ext.begin(),
+                 [](wchar_t c) { return static_cast<wchar_t>(std::towlower(c)); });
+  return ext;
+}
+
+// Decode any image format supported by GDI+ and return an HICON sized to the
+// system small-icon dimensions. Caller owns the returned HICON (DestroyIcon).
+// Returns nullptr on failure.
+HICON LoadHIconFromImage(const std::wstring &path, int cx, int cy) {
+  Gdiplus::Bitmap src(path.c_str());
+  if (src.GetLastStatus() != Gdiplus::Ok) {
+    return nullptr;
+  }
+
+  // Resize to the requested tray icon size with high-quality scaling.
+  Gdiplus::Bitmap dst(cx, cy, PixelFormat32bppARGB);
+  {
+    Gdiplus::Graphics g(&dst);
+    g.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+    g.SetSmoothingMode(Gdiplus::SmoothingModeHighQuality);
+    g.SetPixelOffsetMode(Gdiplus::PixelOffsetModeHighQuality);
+    g.DrawImage(&src, 0, 0, cx, cy);
+  }
+
+  HICON hIcon = nullptr;
+  if (dst.GetHICON(&hIcon) != Gdiplus::Ok) {
+    return nullptr;
+  }
+  return hIcon;
+}
+
+// Unified loader: delegates to LoadImage for .ico, otherwise GDI+.
+HICON LoadTrayIcon(const std::wstring &path) {
+  const int cx = GetSystemMetrics(SM_CXSMICON);
+  const int cy = GetSystemMetrics(SM_CYSMICON);
+
+  if (LowerExtension(path) == L"ico") {
+    return static_cast<HICON>(
+        LoadImage(nullptr, path.c_str(), IMAGE_ICON, cx, cy, LR_LOADFROMFILE));
+  }
+  return LoadHIconFromImage(path, cx, cy);
+}
 
 const flutter::EncodableValue *ValueOrNull(const flutter::EncodableMap &map,
                                            const char *key) {
@@ -104,6 +181,7 @@ void DesktopTrayPlugin::RegisterWithRegistrar(
 
 DesktopTrayPlugin::DesktopTrayPlugin(flutter::PluginRegistrarWindows *registrar)
     : registrar_(registrar) {
+  EnsureGdiplusStarted();
   window_proc_id_ = registrar->RegisterTopLevelWindowProcDelegate(
       [this](HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         return HandleWindowProc(hwnd, msg, wp, lp);
@@ -120,6 +198,7 @@ DesktopTrayPlugin::~DesktopTrayPlugin() {
   }
   if (hMenu_)
     DestroyMenu(hMenu_);
+  MaybeShutdownGdiplus();
 }
 
 HWND DesktopTrayPlugin::GetMainWindow() {
@@ -127,6 +206,12 @@ HWND DesktopTrayPlugin::GetMainWindow() {
 }
 
 void DesktopTrayPlugin::ApplyIcon() {
+  // Never register a placeholder tray slot without a real icon — that was the
+  // historical root cause of "an invisible clickable area with no graphic".
+  if (nid_.hIcon == nullptr) {
+    return;
+  }
+
   if (icon_set_) {
     Shell_NotifyIcon(NIM_MODIFY, &nid_);
   } else {
@@ -277,14 +362,18 @@ void DesktopTrayPlugin::SetIcon(
   auto iconPath =
       std::get<std::string>(args.at(flutter::EncodableValue("iconPath")));
 
+  std::wstring wpath = converter_.from_bytes(iconPath);
+  HICON hNew = LoadTrayIcon(wpath);
+  if (hNew == nullptr) {
+    result->Error("ICON_LOAD_FAILED",
+                  "Failed to load tray icon from: " + iconPath);
+    return;
+  }
+
   if (nid_.hIcon != nullptr) {
     DestroyIcon(nid_.hIcon);
   }
-
-  nid_.hIcon = static_cast<HICON>(
-      LoadImage(nullptr, converter_.from_bytes(iconPath).c_str(), IMAGE_ICON,
-                GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON),
-                LR_LOADFROMFILE));
+  nid_.hIcon = hNew;
 
   ApplyIcon();
   result->Success(flutter::EncodableValue(true));

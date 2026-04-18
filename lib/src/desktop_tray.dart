@@ -64,7 +64,16 @@ class DesktopTray {
   /// Set the tray icon image.
   ///
   /// [assetPath] is relative to the Flutter assets directory
-  /// (e.g. `'assets/logo/logo.png'`). On Windows pass an `.ico` path.
+  /// (e.g. `'assets/logo/logo.png'`).
+  ///
+  /// Supported formats per platform:
+  /// - **Windows**: `.ico`, `.png`, `.jpg`, `.bmp`, `.gif` (non-`.ico` files
+  ///   are decoded via GDI+). `.ico` still gives the sharpest result.
+  /// - **macOS**: any format `NSImage` understands (PNG recommended).
+  /// - **Linux**: PNG in an icon-theme-compatible path.
+  ///
+  /// Throws a [PlatformException] with code `ICON_LOAD_FAILED` on Windows
+  /// when the image cannot be decoded.
   Future<void> setIcon(String assetPath) async {
     final Map<String, dynamic> arguments = {
       'iconPath': p.joinAll([

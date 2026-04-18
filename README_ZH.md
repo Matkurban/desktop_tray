@@ -8,17 +8,18 @@
 |-------------|----------------------------------------------|
 | **Linux**   | libayatana-appindicator（或旧版 libappindicator） |
 | **macOS**   | NSStatusBar + NSMenu                         |
-| **Windows** | Win32 Shell_NotifyIcon + TrackPopupMenu      |
+| **Windows** | Win32 Shell_NotifyIcon + GDI+（PNG/JPG/BMP/ICO） |
 
 > 🇬🇧 [English](README.md)
 
 ## 功能特性
 
-- 🖼️ 从 Flutter 资源路径设置托盘图标（`.png` / `.ico`）
-- 💬 设置鼠标悬停提示文字
+- 🖨️ 从 Flutter 资源路径设置托盘图标（`.png` / `.jpg` / `.bmp` / `.ico`）
+- 💬 设置鼠标悬停提示文字（Windows / macOS 支持）
 - 📋 构建右键菜单，支持普通项、分隔线、复选框和嵌套子菜单
 - 🖱️ 通过监听器混入类接收左键、右键及菜单项点击回调
 - 🧩 自动递增的唯一菜单项 ID，无需外部 ID 生成器
+- 🔍 `checkAvailable()` 检测 Linux StatusNotifierWatcher 可用性
 
 ## 快速开始
 
@@ -133,6 +134,7 @@ await desktopTray.destroy();
 
 | 方法                                    | 说明                      |
 |---------------------------------------|-------------------------|
+| `checkAvailable()`                    | 检测托盘后端是否可用（仅 Linux 有实际意义） |
 | `setIcon(String assetPath)`           | 从 Flutter 资源路径设置托盘图标    |
 | `setToolTip(String toolTip)`          | 设置悬停提示文字（Linux 上无效）     |
 | `setContextMenu(TrayMenu menu)`       | 替换右键上下文菜单               |
@@ -155,7 +157,11 @@ await desktopTray.destroy();
 
 - **Linux**：AppIndicator 在左键点击时也会显示上下文菜单。`popUpContextMenu()` 无效。AppIndicator API 不支持 Tooltip。新版 libayatana-appindicator 的弃用警告已被静默抑制。
 - **macOS**：图标数据以 base64 编码发送到原生层，用于构造 `NSImage`。
-- **Windows**：建议使用 `.ico` 格式图标以获得最佳显示效果。
+- **Windows**：同时支持 `.ico` / `.png` / `.jpg` / `.bmp` / `.gif`。`.ico` 通过 `LoadImage` 加载，其他格式使用 GDI+ 解码并缩放至系统小图标尺寸。若解码失败会抛出 `PlatformException`（code 为 `ICON_LOAD_FAILED`），而不会再造成“有按钮无图标”的情况。
+
+## 运行示例
+
+[`example/`](example) 目录提供了覆盖全部 API 的完整演示。参见 [example/README.md](example/README.md) 了解图标资源放置和运行命令。
 
 ## 许可证
 

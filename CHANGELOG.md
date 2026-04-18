@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026.4.19
+
+### Fixed
+
+- **Windows**: tray icon now shows up when set from non-`.ico` assets. The
+  Win32 `LoadImage` API only decodes `.ico`; passing a `.png` used to return
+  `NULL` and `Shell_NotifyIcon` still registered an empty clickable slot
+  ("button works, icon invisible"). The plugin now falls back to GDI+ and
+  supports `.png` / `.jpg` / `.bmp` / `.gif`. If decoding fails, the native
+  side no longer registers an empty tray slot — it throws a
+  `PlatformException` with code `ICON_LOAD_FAILED` instead.
+
+### Added
+
+- Comprehensive `example/` app demonstrating every public API, every
+  `TrayMenuItem` type, live icon/tooltip/checkbox updates, `checkAvailable`,
+  `popUpContextMenu`, `destroy` + rebuild, and a real-time event log.
+- Documented `checkAvailable()` in the README API tables.
+
 ## 2026.4.8
 
 -- fix `windows` warning
